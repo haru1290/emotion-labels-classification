@@ -1,6 +1,5 @@
 *.tsv
 *.csv
-bert_twitter_our.py
 bow.py
 hottoSNS-bert
 hottoSNS-bert_20190311.tar.bz2
