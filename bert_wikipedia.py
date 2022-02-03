@@ -7,18 +7,13 @@ import tensorflow as tf
 import torch
 import time
 from torch.utils.data import Dataset, DataLoader
-from transformers import BertForPreTraining, BertTokenizer
+from transformers import BertJapaneseTokenizer, BertModel
 from torch import optim
 from torch import cuda
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import cohen_kappa_score
 
-sys.path.append("./hottoSNS-bert/src/")
-import tokenization
-from preprocess import normalizer
-
-MODEL_FILE = "models/hottoSNS-BERT_W_Anger.pth"
 
 MAX_LEN = 128
 
@@ -41,13 +36,14 @@ class CreateDataset(Dataset):
 
     def __getitem__(self, index):
         text = self.X[index]
-        inputs = self.tokenizer.tokenize(text)
-        ids = self.tokenizer.convert_tokens_to_ids(["[CLS]"]+inputs+["[SEP]"])
-        while self.max_len > len(ids):
-            ids.append(0)
-        if self.max_len < len(ids):
-            ids = ids[:self.max_len]
-        mask = [1] * len(ids)
+        inputs = self.tokenizer.encode_plus(
+            text,
+            add_special_tokens=True,
+            max_length=self.max_len,
+            pad_to_max_length=True
+        )
+        ids = inputs['input_ids']
+        mask = inputs['attention_mask']
 
         return {
             'ids': torch.LongTensor(ids),
@@ -57,15 +53,15 @@ class CreateDataset(Dataset):
 
 
 class BERTClass(torch.nn.Module):
-    def __init__(self, bert_model_file, drop_rate, otuput_size, config_file):
+    def __init__(self, pretrained, drop_rate, otuput_size):
         super().__init__()
-        self.bert = BertForPreTraining.from_pretrained(bert_model_file, from_tf=True, config=config_file, output_hidden_states=True)
+        self.bert = BertModel.from_pretrained(pretrained)
         self.drop = torch.nn.Dropout(drop_rate)
         self.fc = torch.nn.Linear(768, otuput_size)
 
     def forward(self, ids, mask):
-        out = self.bert(ids, attention_mask=mask)[2][-1]
-        out = self.fc(self.drop(out[:,0]))
+        _, out = self.bert(ids, attention_mask=mask)
+        out = self.fc(self.drop(out))
 
         return out
 
@@ -128,7 +124,7 @@ def train_model(dataset_train, dataset_dev, batch_size, model, criterion, optimi
 
         print(f'epoch: {epoch + 1}, loss_train: {loss_train:.4f}, accuracy_train: {acc_train:.4f}, loss_dev: {loss_dev:.4f}, accuracy_dev: {acc_dev:.4f}, {(e_time - s_time):.4f}sec')
     
-    torch.save(model.state_dict(), MODEL_FILE)
+    torch.save(model.state_dict(), "models/tohoku-BERT_W_PN.pth")
 
     return {'train': log_train, 'dev': log_dev}
 
@@ -140,16 +136,14 @@ def preprocessing(num):
 def main():
     args = sys.argv
 
-    df = pd.read_csv('data/pn-long.csv', header=0)
+    df = pd.read_csv('data/PN_Splitdata.csv', header=0)
 
     emotion1 = args[1]
     emotion2 = args[2]
 
-    '''
     df[emotion1] = df[emotion1].map(lambda x: preprocessing(x))
     if emotion1 != emotion2:
         df[emotion2] = df[emotion2].map(lambda x: preprocessing(x))
-    '''
     
     train = df.loc[df['Train/Div/Test'].isin(['train']),['Sentence', emotion1]]
     dev = df.loc[df['Train/Div/Test'].isin(['dev']),['Sentence', emotion1]]
@@ -163,24 +157,15 @@ def main():
     y_dev = [[v] for v in list(dev[emotion1])]
     y_test = [[v] for v in list(test[emotion2])]
 
-    bert_model_dir = "./hottoSNS-bert/trained_model/masked_lm_only_L-12_H-768_A-12/"
-    config_file = os.path.join(bert_model_dir, "bert_config.json")
-    vocab_file = os.path.join(bert_model_dir, "tokenizer_spm_32K.vocab.to.bert")
-    sp_model_file = os.path.join(bert_model_dir, "tokenizer_spm_32K.model")
-    bert_model_file = os.path.join(bert_model_dir, "model.ckpt-1000000.index")
-    
-    tokenizer = tokenization.JapaneseTweetTokenizer(
-        vocab_file = vocab_file,
-        model_file = sp_model_file,
-        normalizer = normalizer.twitter_normalizer_for_bert_encoder,
-        do_lower_case = False
-    )
+    pretrained = 'cl-tohoku/bert-base-japanese-whole-word-masking'
+
+    tokenizer = BertJapaneseTokenizer.from_pretrained(pretrained)
 
     dataset_train = CreateDataset(train['Sentence'], y_train, tokenizer, MAX_LEN)
     dataset_dev = CreateDataset(dev['Sentence'], y_dev, tokenizer, MAX_LEN)
     dataset_test = CreateDataset(test['Sentence'], y_test, tokenizer, MAX_LEN)
 
-    model = BERTClass(bert_model_file, DROP_RATE, OUTPUT_SIZE, config_file)
+    model = BERTClass(pretrained, DROP_RATE, OUTPUT_SIZE)
 
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -191,13 +176,13 @@ def main():
     log = train_model(dataset_train, dataset_dev, BATCH_SIZE, model, criterion, optimizer, NUM_EPOCHS, device=device)
     
     # テスト開始
-    model.load_state_dict(torch.load(MODEL_FILE))
+    model.load_state_dict(torch.load("models/tohoku-BERT_W_PN.pth"))
     model.eval()
 
     dataloader_test = DataLoader(dataset_test, batch_size=1, shuffle=False)
 
-    y_pred = list()
-    y_true = list()
+    y_pred = []
+    y_true = []
     for data in dataloader_test:
         ids = data['ids'].to(device)
         mask = data['mask'].to(device)
