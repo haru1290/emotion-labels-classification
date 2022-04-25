@@ -210,22 +210,21 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model_ = EmotionClassifier(n_classes=N_CLASSES, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL)
-    model = model_
     model = torch.nn.DataParallel(model_, device_ids=DEVICE_IDS)
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
     
+    optimizer = torch.optim.Adam([
+        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
+        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
+    ])
     '''
     optimizer = torch.optim.Adam([
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
     '''
-    optimizer = torch.optim.Adam([
-        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
-        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
-    ])
 
     earlystopping = EarlyStopping(patience=PATIENCE, verbose=True)
 
