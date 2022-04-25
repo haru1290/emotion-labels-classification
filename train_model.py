@@ -1,4 +1,5 @@
 import os
+import argparse
 import random
 import numpy as np
 import pandas as pd
@@ -29,18 +30,18 @@ LEARNING_RATE = 2e-5
 
 
 class CreateDataset(Dataset):
-    def __init__(self, data, tokenizer, max_token_len):
-        self.data = data
+    def __init__(self, X, y, tokenizer, max_token_len):
+        self.X = X
+        self.y = y
         self.tokenizer = tokenizer
         self.max_len = max_token_len
 
     def __len__(self):
-        return len(self.data)
+        return len(self.y)
 
-    def __getitem__(self, idx):
-        data_row = self.data.iloc[idx]
-        text = data_row[TEXT_COLUMN]
-        labels = data_row[LABEL_COLUMN]
+    def __getitem__(self, index):
+        text = self.X[index]
+        labels = self.y[index]
 
         encoding = self.tokenizer.encode_plus(
             text,
@@ -202,27 +203,27 @@ def main():
     valid_df = df[df['Train/Div/Test'] == 'dev'].reset_index(drop=True)
     test_df = df[df['Train/Div/Test'] == 'test'].reset_index(drop=True)
 
-    data_module = CreateDataModule(train_df, valid_df, test_df)
+    data_module = CreateDataModule(train_df, valid_df, test_df, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
-
-    torch_fix_seed()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     model_ = EmotionClassifier(n_classes=N_CLASSES, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL)
-    model = torch.nn.DataParallel(model_, device_ids=DEVICE_IDS)
+    # model = torch.nn.DataParallel(model_, device_ids=DEVICE_IDS)
+    model = model_
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
     
-    optimizer = torch.optim.Adam([
-        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
-        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
-    ])
-    '''
+
     optimizer = torch.optim.Adam([
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
+    ])
+    '''
+        optimizer = torch.optim.Adam([
+        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
+        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
     '''
 
@@ -232,6 +233,7 @@ def main():
     
 
 if __name__ == "__main__":
+    torch_fix_seed()
     main()
 
 
