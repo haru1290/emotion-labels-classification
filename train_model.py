@@ -7,11 +7,9 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertJapaneseTokenizer, BertModel
 from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_score
+from argparse import ArgumentParser
 from tqdm import tqdm
 
-
-TEXT_COLUMN = 'Sentence'
-LABEL_COLUMN = 'W_Joy'
 
 DEVICE_IDS = [0, 1]
 
@@ -30,18 +28,18 @@ LEARNING_RATE = 2e-5
 
 
 class CreateDataset(Dataset):
-    def __init__(self, X, y, tokenizer, max_token_len):
-        self.X = X
-        self.y = y
+    def __init__(self, data, tokenizer, max_token_len):
+        self.data = data
         self.tokenizer = tokenizer
         self.max_len = max_token_len
 
     def __len__(self):
-        return len(self.y)
+        return len(self.data)
 
     def __getitem__(self, index):
-        text = self.X[index]
-        labels = self.y[index]
+        data_row = self.data.iloc[index]
+        text = data_row[0]
+        labels = data_row[1]
 
         encoding = self.tokenizer.encode_plus(
             text,
@@ -131,13 +129,11 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def calculate_loss_and_accuracy(model, loader, criterion, device):
+def calculate_loss_and_scores(model, loader, criterion, device):
     model.eval()
     loss = 0.0
-    total = 0
-    correct = 0
     with torch.no_grad():
-        for batch in tqdm(loader):
+        for batch in loader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -147,10 +143,16 @@ def calculate_loss_and_accuracy(model, loader, criterion, device):
 
             preds = torch.argmax(preds, dim=-1).cpu().numpy()
             labels = labels.cpu().numpy()
-            total += len(labels)
-            correct += (preds == labels).sum().item()
-    
-    return loss / len(loader), correct / total
+            accuracy_score = accuracy_score(preds, labels)
+            mean_absolute_error = mean_absolute_error(preds, labels)
+            cohen_kappa_score = cohen_kappa_score(preds, labelsweight='quadratic')
+            
+    return {
+        'loss': loss / len(loader),
+        'accuracy_score': accuracy_score,
+        'mean_absolute_error': mean_absolute_error,
+        'cohen_kappa_score': cohen_kappa_score
+    }
 
 
 def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
@@ -158,7 +160,7 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
     valid_log = []
     for epoch in range(n_epochs):
         model.train()
-        for batch in tqdm(train_dataloader):
+        for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -169,22 +171,31 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
             loss.backward()
             optimizer.step()
          
-        train_loss, train_accuracy = calculate_loss_and_accuracy(model, train_dataloader, criterion, device)
-        valid_loss, valid_accuracy = calculate_loss_and_accuracy(model, valid_dataloader, criterion, device)
-        train_log.append([train_loss, train_accuracy])
-        valid_log.append([valid_loss, valid_accuracy])
+        train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
+        valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
+        train_log.append([train_scores['loss'], train_scores['accuracy_score']])
+        valid_log.append([valid_scores['loss'], valid_scores['accuracy_score']])
 
         earlystopping(valid_loss, model)
         if earlystopping.early_stop:
             print("Early stopping")
             break
         
-        print(f"epoch: {epoch + 1}, train_loss: {train_loss:.3f}, train_accuracy: {train_accuracy:.3f}, valid_loss: {valid_loss:.3f}, valid_accuracy: {valid_accuracy:.3f}")
+        print(f"train_loss: {train_scores['loss']:.3f}, train_accuracy: {train_scores['accuracy_score']:.3f}, valid_loss: {valid_scores['loss']:.3f}, valid_accuracy: {valid_scores['accuracy_score']:.3f}")
 
     return {
         'train_log': train_log,
         'valid_log': valid_log
     }
+
+
+def get_args():
+    parser = ArgumentParser()
+    parser.add_argument('--wrime', default='./data/pn-long.csv')
+    parser.add_argument('--y_train_valid')
+    parser.add_argument('--y_test')
+
+    return parser.parse_args()
 
 
 def torch_fix_seed(random_seed=RANDOM_SEED):
@@ -197,37 +208,33 @@ def torch_fix_seed(random_seed=RANDOM_SEED):
 
 
 def main():
-    df = pd.read_csv('./data/pn-long.csv', header=0)
+    args = get_args()
 
-    train_df = df[df['Train/Div/Test'] == 'train'].reset_index(drop=True)
-    valid_df = df[df['Train/Div/Test'] == 'dev'].reset_index(drop=True)
-    test_df = df[df['Train/Div/Test'] == 'test'].reset_index(drop=True)
+    df = pd.read_csv(args.wrime, header=0)
+
+    train_df = df[df['Train/Div/Test'] == 'train'].loc[:,['Sentence', args.y_train_valid]].reset_index(drop=True)
+    valid_df = df[df['Train/Div/Test'] == 'dev'].loc[:,['Sentence', args.y_train_valid]].reset_index(drop=True)
+    test_df = df[df['Train/Div/Test'] == 'test'].loc[:,['Sentence', args.y_test]].reset_index(drop=True)
 
     data_module = CreateDataModule(train_df, valid_df, test_df, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model_ = EmotionClassifier(n_classes=N_CLASSES, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL)
-    # model = torch.nn.DataParallel(model_, device_ids=DEVICE_IDS)
-    model = model_
+    model = EmotionClassifier(n_classes=N_CLASSES, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL)
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
-    
 
     optimizer = torch.optim.Adam([
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
-    '''
-        optimizer = torch.optim.Adam([
-        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
-        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
-    ])
-    '''
 
-    earlystopping = EarlyStopping(patience=PATIENCE, verbose=True)
+    earlystopping = EarlyStopping(
+        patience=PATIENCE,
+        verbose=True
+    )
 
     train_model(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
     
