@@ -131,6 +131,8 @@ class EarlyStopping:
 
 def calculate_loss_and_scores(model, loader, criterion, device):
     model.eval()
+    y_preds =[]
+    y_true =[]
     loss = 0.0
     with torch.no_grad():
         for batch in loader:
@@ -138,20 +140,17 @@ def calculate_loss_and_scores(model, loader, criterion, device):
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
 
-            preds = model(input_ids, attention_mask)
-            loss += criterion(preds, labels).item()
+            output = model(input_ids, attention_mask)
+            loss += criterion(output, labels).item()
+            y_preds.append(torch.argmax(output, dim=-1).cpu().numpy())
+            y_true.append(labels.cpu().numpy())
+            print(y_preds, y_true)
 
-            preds = torch.argmax(preds, dim=-1).cpu().numpy()
-            labels = labels.cpu().numpy()
-            accuracy_score = accuracy_score(preds, labels)
-            mean_absolute_error = mean_absolute_error(preds, labels)
-            cohen_kappa_score = cohen_kappa_score(preds, labelsweight='quadratic')
-            
     return {
         'loss': loss / len(loader),
-        'accuracy_score': accuracy_score,
-        'mean_absolute_error': mean_absolute_error,
-        'cohen_kappa_score': cohen_kappa_score
+        'accuracy': accuracy_score(y_preds, y_true),
+        'mean_absolute_error': mean_absolute_error(y_preds, y_true),
+        'cohen_kappa_score': cohen_kappa_score(y_preds, y_true, weight='quadratic')
     }
 
 
@@ -166,8 +165,8 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
             labels = batch['labels'].to(device)
 
             optimizer.zero_grad()
-            preds = model(input_ids, attention_mask)
-            loss = criterion(preds, labels)
+            output = model(input_ids, attention_mask)
+            loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
          
@@ -176,7 +175,7 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
         train_log.append([train_scores['loss'], train_scores['accuracy_score']])
         valid_log.append([valid_scores['loss'], valid_scores['accuracy_score']])
 
-        earlystopping(valid_loss, model)
+        earlystopping(valid_scores['loss'], model)
         if earlystopping.early_stop:
             print("Early stopping")
             break
