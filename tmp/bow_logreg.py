@@ -11,7 +11,20 @@ from tqdm import tqdm
 RANDOM_STATE = 34
 
 
-class 
+class LogRegClass:
+    def __init__(self):
+        self.model = None
+
+    def fit(self, X_train, y_train, C):
+        self.model = LogisticRegression(C=C, random_state=RANDOM_STATE)
+        self.model.fit(X_train, y_train)
+
+        return model
+
+    def predict(self, X):
+        pred = self.model.predict(x)
+
+        return predict
 
 
 def tokenizer(text):
@@ -19,13 +32,6 @@ def tokenizer(text):
     words = tagger.parse(text).split()
     
     return ' '.join(words)
-
-
-def train_model(X_train, y_train, C):
-    lg = LogisticRegression(C=C, random_state=RANDOM_STATE)
-    lg.fit(X_train, y_train)
-
-    return lg
 
 
 def calculate_score(preds, labels):

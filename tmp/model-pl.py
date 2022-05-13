@@ -16,7 +16,7 @@ LABEL_COLUMN = 'W_Joy'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
-N_EPOCHS = 3
+N_EPOCHS = 10
 MAX_TOKEN_LEN = 128
 OUTPUT_SIZE = 4
 BATCH_SIZE = 32
@@ -170,7 +170,7 @@ class EmotionClassifier(pl.LightningModule):
     
 def main():
     df = pd.read_csv("../data/wrime-ver2.tsv", header=0, sep='\t')
-    
+
     train_df = df[df['Train/Dev/Test'] == 'train'].reset_index(drop=True)
     valid_df = df[df['Train/Dev/Test'] == 'dev'].reset_index(drop=True)
     test_df = df[df['Train/Dev/Test'] == 'test'].reset_index(drop=True)

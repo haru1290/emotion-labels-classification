@@ -144,13 +144,10 @@ def calculate_loss_and_scores(rank, model, loader, criterion, device):
             attention_mask = batch['attention_mask'].to(rank)
             labels = batch['labels'].to(rank)
 
-
             output = model(input_ids, attention_mask)
             loss += criterion(output, labels).item()
             y_preds.append(torch.argmax(output, dim=-1).cpu().numpy())
             y_true.append(labels.cpu().numpy())
-
-            print(y_preds, y_true)
 
     return {
         'loss': loss / len(loader),
@@ -161,10 +158,15 @@ def calculate_loss_and_scores(rank, model, loader, criterion, device):
 
 
 # def train_model(rank, model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
-def train(rank, model, train_dataloader, valid_dataloader, criterion, earlystopping, device, n_epochs=N_EPOCHS):
-    dist.init_process_group('gloo', rank=rank, world_size=2)
+def train(rank, model, data_module, criterion, earlystopping, device, n_epochs=N_EPOCHS):
+    print(1)
+    train_dataloader = data_module.train_dataloader()
+    valid_dataloader = data_module.valid_dataloader()
+
+    dist.init_process_group('nccl', rank=rank, world_size=2)
     model = model.to(rank)
     model = DDP(model, device_ids=[rank])
+
     optimizer = torch.optim.Adam([
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
@@ -188,7 +190,7 @@ def train(rank, model, train_dataloader, valid_dataloader, criterion, earlystopp
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
-         
+        
         train_scores = calculate_loss_and_scores(rank, model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(rank, model, valid_dataloader, criterion, device)
         train_log.append([train_scores['loss'], train_scores['accuracy_score']])
@@ -201,10 +203,10 @@ def train(rank, model, train_dataloader, valid_dataloader, criterion, earlystopp
         
         print(f"train_loss: {train_scores['loss']:.3f}, train_accuracy: {train_scores['accuracy_score']:.3f}, valid_loss: {valid_scores['loss']:.3f}, valid_accuracy: {valid_scores['accuracy_score']:.3f}")
 
-    return {
+    '''return {
         'train_log': train_log,
         'valid_log': valid_log
-    }
+    }'''
 
 
 def torch_fix_seed(random_seed=RANDOM_SEED):
@@ -219,9 +221,13 @@ def torch_fix_seed(random_seed=RANDOM_SEED):
 def main(argsd):
     df = pd.read_csv(argsd.wrime, header=0, sep='\t')
 
-    train_df = df[df['Train/Dev/Test'] == 'train'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
-    valid_df = df[df['Train/Dev/Test'] == 'dev'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
-    test_df = df[df['Train/Dev/Test'] == 'test'].loc[:,['Sentence', argsd.test]].reset_index(drop=True)
+    train = df[df['Train/Dev/Test'] == 'train'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
+    valid = df[df['Train/Dev/Test'] == 'dev'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
+    test = df[df['Train/Dev/Test'] == 'test'].loc[:,['Sentence', argsd.test]].reset_index(drop=True)
+
+    tokenizer = BertJapaneseTokenizer.from_pretrained(pretrained_model)
+
+    train_dataset = CreateDataset(train, self.tokenizer, self.max_token_len)
 
     data_module = CreateDataModule(train_df, valid_df, test_df, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
@@ -249,7 +255,7 @@ def main(argsd):
 
     mp.spawn(
         train,
-        args=(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, earlystopping, device, N_EPOCHS),
+        args=(model, data_module, criterion, earlystopping, device, N_EPOCHS),
         nprocs=2,
         join=True
     )
@@ -258,8 +264,8 @@ def main(argsd):
     
 
 if __name__ == "__main__":
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    # os.environ['CUDA_DEVICE_ORDER'] = "PCI_BUS_ID"
+    # os.environ['CUDA_VISIBLE_DEVICES'] = "0,1"
     os.environ['MASTER_ADDR'] = 'localhost'
     os.environ['MASTER_PORT'] = '29500'
 
@@ -271,4 +277,3 @@ if __name__ == "__main__":
 
     torch_fix_seed()
     main(argsd)
-
