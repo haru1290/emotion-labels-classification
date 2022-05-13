@@ -11,16 +11,7 @@ from tqdm import tqdm
 RANDOM_STATE = 34
 
 
-def get_option():
-    argparser = ArgumentParser()
-
-    argparser.add_argument('--corpus', default='./data/pn-short.csv')
-    
-    argparser.add_argument('--y_train', default='W_PN')
-    argparser.add_argument('--y_valid', default='W_PN')
-    argparser.add_argument('--y_test', default='W_PN')
-
-    return argparser.parse_args()
+class 
 
 
 def tokenizer(text):
@@ -49,9 +40,7 @@ def calculate_score(preds, labels):
     }
 
 
-def main():
-    args = get_option()
-
+def main(args):
     df = pd.read_csv(args.corpus, header=0)
     df['Sentence'] = df['Sentence'].map(lambda x: tokenizer(x))
 
@@ -62,7 +51,7 @@ def main():
     train_valid = pd.concat([train, valid], axis=0)
     train_valid.reset_index(drop=True, inplace=True)
 
-    vectorizer = CountVectorizer(binary=False)
+    vectorizer = CountVectorizer()
     X_train_valid = vectorizer.fit_transform(train_valid['Sentence'])
     X_test = vectorizer.transform(test['Sentence'])
 
@@ -88,4 +77,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    argparser = ArgumentParser()
+
+    argparser.add_argument('--corpus', default='./data/pn-short.csv')
+    
+    argparser.add_argument('--y_train', default='W_PN')
+    argparser.add_argument('--y_valid', default='W_PN')
+    argparser.add_argument('--y_test', default='W_PN')
+
+    args = argparser.parse_args()
+    main(args)

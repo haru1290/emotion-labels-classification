@@ -3,6 +3,9 @@ import random
 import numpy as np
 import pandas as pd
 import torch
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertJapaneseTokenizer, BertModel
 from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_score
@@ -10,15 +13,13 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 
 
-DEVICE_IDS = [0, 1]
-
 RANDOM_SEED = 123
 
 PATIENCE = 3
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
-N_EPOCHS = 3
+N_EPOCHS = 10
 N_CLASSES = 4
 MAX_TOKEN_LEN = 128
 BATCH_SIZE = 32
@@ -128,21 +129,28 @@ class EarlyStopping:
         self.val_loss_min = val_loss
 
 
-def calculate_loss_and_scores(model, loader, criterion, device):
+def calculate_loss_and_scores(rank, model, loader, criterion, device):
     model.eval()
     y_preds =[]
     y_true =[]
     loss = 0.0
     with torch.no_grad():
         for batch in loader:
-            input_ids = batch['input_ids'].to(device)
+            '''input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
+            labels = batch['labels'].to(device)'''
+
+            input_ids = batch['input_ids'].to(rank)
+            attention_mask = batch['attention_mask'].to(rank)
+            labels = batch['labels'].to(rank)
+
 
             output = model(input_ids, attention_mask)
             loss += criterion(output, labels).item()
             y_preds.append(torch.argmax(output, dim=-1).cpu().numpy())
             y_true.append(labels.cpu().numpy())
+
+            print(y_preds, y_true)
 
     return {
         'loss': loss / len(loader),
@@ -152,15 +160,28 @@ def calculate_loss_and_scores(model, loader, criterion, device):
     }
 
 
-def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+# def train_model(rank, model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+def train(rank, model, train_dataloader, valid_dataloader, criterion, earlystopping, device, n_epochs=N_EPOCHS):
+    dist.init_process_group('gloo', rank=rank, world_size=2)
+    model = model.to(rank)
+    model = DDP(model, device_ids=[rank])
+    optimizer = torch.optim.Adam([
+        {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
+        {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
+    ])
+
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
         model.train()
         for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
-            input_ids = batch['input_ids'].to(device)
+            '''input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
+            labels = batch['labels'].to(device)'''
+
+            input_ids = batch['input_ids'].to(rank)
+            attention_mask = batch['attention_mask'].to(rank)
+            labels = batch['labels'].to(rank)
 
             optimizer.zero_grad()
             output = model(input_ids, attention_mask)
@@ -168,8 +189,8 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
             loss.backward()
             optimizer.step()
          
-        train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
-        valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
+        train_scores = calculate_loss_and_scores(rank, model, train_dataloader, criterion, device)
+        valid_scores = calculate_loss_and_scores(rank, model, valid_dataloader, criterion, device)
         train_log.append([train_scores['loss'], train_scores['accuracy_score']])
         valid_log.append([valid_scores['loss'], valid_scores['accuracy_score']])
 
@@ -186,15 +207,6 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
     }
 
 
-def get_args():
-    parser = ArgumentParser()
-    parser.add_argument('--wrime', default='./data/pn-long.csv')
-    parser.add_argument('--y_train_valid')
-    parser.add_argument('--y_test')
-
-    return parser.parse_args()
-
-
 def torch_fix_seed(random_seed=RANDOM_SEED):
     random.seed(random_seed)
     np.random.seed(random_seed)
@@ -204,40 +216,59 @@ def torch_fix_seed(random_seed=RANDOM_SEED):
     torch.use_deterministic_algorithms = True
 
 
-def main():
-    args = get_args()
+def main(argsd):
+    df = pd.read_csv(argsd.wrime, header=0, sep='\t')
 
-    df = pd.read_csv(args.wrime, header=0)
-
-    train_df = df[df['Train/Div/Test'] == 'train'].loc[:,['Sentence', args.y_train_valid]].reset_index(drop=True)
-    valid_df = df[df['Train/Div/Test'] == 'dev'].loc[:,['Sentence', args.y_train_valid]].reset_index(drop=True)
-    test_df = df[df['Train/Div/Test'] == 'test'].loc[:,['Sentence', args.y_test]].reset_index(drop=True)
+    train_df = df[df['Train/Dev/Test'] == 'train'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
+    valid_df = df[df['Train/Dev/Test'] == 'dev'].loc[:,['Sentence', argsd.train_valid]].reset_index(drop=True)
+    test_df = df[df['Train/Dev/Test'] == 'test'].loc[:,['Sentence', argsd.test]].reset_index(drop=True)
 
     data_module = CreateDataModule(train_df, valid_df, test_df, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = EmotionClassifier(n_classes=N_CLASSES, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL)
-    model.to(device)
+    model = EmotionClassifier(
+        n_classes=N_CLASSES,
+        drop_rate=DROP_RATE,
+        pretrained_model=BERT_MODEL
+    )
+    # model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
 
-    optimizer = torch.optim.Adam([
+    '''optimizer = torch.optim.Adam([
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
-    ])
+    ])'''
 
     earlystopping = EarlyStopping(
         patience=PATIENCE,
         verbose=True
     )
 
-    train_model(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
+    mp.spawn(
+        train,
+        args=(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, earlystopping, device, N_EPOCHS),
+        nprocs=2,
+        join=True
+    )
+
+    # train_model(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
     
 
 if __name__ == "__main__":
-    torch_fix_seed()
-    main()
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID" 
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '29500'
 
+    parser = ArgumentParser()
+    parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
+    parser.add_argument('--train_valid')
+    parser.add_argument('--test')
+    argsd = parser.parse_args()
+
+    torch_fix_seed()
+    main(argsd)
 

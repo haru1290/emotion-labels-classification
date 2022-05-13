@@ -85,6 +85,7 @@ class EmotionClassifier(pl.LightningModule):
     def __init__(self, n_classes: int, n_epochs=N_EPOCHS, drop_rate=None, pretrained_model=BERT_MODEL):
         super().__init__()
         self.bert = BertModel.from_pretrained(pretrained_model, return_dict=True)
+        self.bert = BertModel.from_pretrained(pretrained_model)
         self.drop = nn.Dropout(drop_rate)
         self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
         self.n_epochs = n_epochs
@@ -168,11 +169,11 @@ class EmotionClassifier(pl.LightningModule):
 
     
 def main():
-    df = pd.read_csv("./data/pn-long.csv", header=0)
+    df = pd.read_csv("../data/wrime-ver2.tsv", header=0, sep='\t')
     
-    train_df = df[df['Train/Div/Test'] == 'train'].reset_index(drop=True)
-    valid_df = df[df['Train/Div/Test'] == 'dev'].reset_index(drop=True)
-    test_df = df[df['Train/Div/Test'] == 'test'].reset_index(drop=True)
+    train_df = df[df['Train/Dev/Test'] == 'train'].reset_index(drop=True)
+    valid_df = df[df['Train/Dev/Test'] == 'dev'].reset_index(drop=True)
+    test_df = df[df['Train/Dev/Test'] == 'test'].reset_index(drop=True)
 
     data_module = CreateDataModule(train_df, valid_df, test_df)
     data_module.setup()
@@ -196,7 +197,7 @@ def main():
 
     trainer = pl.Trainer(
         max_epochs=N_EPOCHS,
-        gpus=1,
+        gpus=[0,1],
         progress_bar_refresh_rate=30,
         callbacks=[checkpoint_callback, early_stop_callback]
     )
