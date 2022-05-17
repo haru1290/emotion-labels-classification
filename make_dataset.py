@@ -23,8 +23,8 @@ class CreateDataset(Dataset):
 
     def __getitem__(self, index):
         data_row = self.data.iloc[index]
-        text = data_row[0]
-        labels = data_row[1]
+        text = data_row['Sentence']
+        labels = data_row['Writer_Joy']
 
         encoding = self.tokenizer.encode_plus(
             text,

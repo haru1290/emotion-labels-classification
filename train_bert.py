@@ -122,9 +122,9 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
 
 
 def main(args):
-    train = pd.read_csv(args.train, header=0, sep='\t').loc[:,['Sentence', 'Writer_Joy']]
-    valid = pd.read_csv(args.valid, header=0, sep='\t').loc[:,['Sentence', 'Writer_Joy']]
-    test = pd.read_csv(args.test, header=0, sep='\t').loc[:,['Sentence', 'writer_Joy']]
+    train = pd.read_csv(args.train, header=0, sep='\t')
+    valid = pd.read_csv(args.valid, header=0, sep='\t')
+    test = pd.read_csv(args.test, header=0, sep='\t')
 
     '''train = train[args.train_valid].map(lambda x: preprocessing(x))
     valid = valid[args.train_valid].map(lambda x: preprocessing(x))
