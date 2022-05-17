@@ -92,7 +92,7 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
     valid_log = []
     for epoch in range(n_epochs):
         model.train()
-        for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
+        for batch in tqdm(train_dataloader, desc=f"[Train epoch {epoch + 1}]"):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -125,10 +125,6 @@ def main(args):
     train = pd.read_csv(args.train, header=0, sep='\t')
     valid = pd.read_csv(args.valid, header=0, sep='\t')
     test = pd.read_csv(args.test, header=0, sep='\t')
-
-    '''train = train[args.train_valid].map(lambda x: preprocessing(x))
-    valid = valid[args.train_valid].map(lambda x: preprocessing(x))
-    test = test[args.test].map(lambda x: preprocessing(x))'''
 
     data_module = CreateDataModule(train, valid, test, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
