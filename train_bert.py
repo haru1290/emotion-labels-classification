@@ -9,10 +9,14 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_sco
 from argparse import ArgumentParser
 from tqdm import tqdm
 
+from early_stopping import EarlyStopping
+from models import BertClassifier
+
 
 RANDOM_SEED = 123
 
 PATIENCE = 3
+MODEL_PATH = 'models/model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
@@ -22,76 +26,6 @@ MAX_TOKEN_LEN = 128
 BATCH_SIZE = 32
 DROP_RATE = 0.1
 LEARNING_RATE = 2e-5
-
-
-class CreateDataset(Dataset):
-    def __init__(self, data, tokenizer, max_token_len):
-        self.data = data
-        self.tokenizer = tokenizer
-        self.max_len = max_token_len
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        data_row = self.data.iloc[index]
-        print(data_row)
-        text = data_row[0]
-        labels = data_row[1]
-
-        encoding = self.tokenizer.encode_plus(
-            text,
-            add_special_tokens=True,
-            max_length=self.max_len,
-            pad_to_max_length=True,
-            return_attention_mask=True,
-            return_tensors='pt'
-        )
-
-        return {
-            'input_ids': encoding['input_ids'].flatten(),
-            'attention_mask': encoding['attention_mask'].flatten(),
-            'labels': torch.tensor(labels)
-        }
-
-
-class CreateDataModule():
-    def __init__(self, train, valid, test, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL):
-        self.train = train
-        self.valid = valid
-        self.test = test
-        self.batch_size = batch_size
-        self.max_token_len = max_token_len
-        self.tokenizer = BertJapaneseTokenizer.from_pretrained(pretrained_model)
-
-    def setup(self):
-        self.train_dataset = CreateDataset(self.train, self.tokenizer, self.max_token_len)
-        self.valid_dataset = CreateDataset(self.valid, self.tokenizer, self.max_token_len)
-        self.test_dataset = CreateDataset(self.test, self.tokenizer, self.max_token_len)
-
-    def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count())
-
-    def valid_dataloader(self):
-        return DataLoader(self.valid_dataset, batch_size=self.batch_size, shuffle=False, num_workers=os.cpu_count())
-
-    def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count())
-
-
-class EmotionClassifier(torch.nn.Module):
-    def __init__(self, n_classes: int, drop_rate=DROP_RATE, pretrained_model=BERT_MODEL):
-        super().__init__()
-        self.bert = BertModel.from_pretrained(pretrained_model)
-        self.drop = torch.nn.Dropout(drop_rate)
-        self.classifier = torch.nn.Linear(self.bert.config.hidden_size, n_classes)
-        self.softmax = torch.nn.Softmax(dim=1)
-
-    def forward(self, input_ids, attention_mask):
-        _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
-        preds = self.classifier(self.drop(pooler_output))
-
-        return preds
 
 
 class EarlyStopping:
@@ -122,7 +56,8 @@ class EarlyStopping:
 
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
-            print(f"Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}). Saving model ...")
+            print(f"Validation loss decreased ({self.val_loss_min:.3f} --> {val_loss:.3f}). Saving model ...")
+            
         torch.save(model.state_dict(), 'models/model.pth')
         self.val_loss_min = val_loss
 
@@ -185,13 +120,13 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
     }
 
 
-def torch_fix_seed(random_seed=RANDOM_SEED):
+'''def torch_fix_seed(random_seed=RANDOM_SEED):
     random.seed(random_seed)
     np.random.seed(random_seed)
     torch.manual_seed(random_seed)
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms = True
+    torch.use_deterministic_algorithms = True'''
 
 
 def preprocessing(num):
@@ -205,16 +140,16 @@ def main(args):
     valid = df[df['Train/Dev/Test'] == 'dev'].loc[:,['Sentence', args.train_valid]].reset_index(drop=True)
     test = df[df['Train/Dev/Test'] == 'test'].loc[:,['Sentence', args.test]].reset_index(drop=True)
 
-    train = train[args.train_valid].map(lambda x: preprocessing(x))
+    '''train = train[args.train_valid].map(lambda x: preprocessing(x))
     valid = valid[args.train_valid].map(lambda x: preprocessing(x))
-    test = test[args.test].map(lambda x: preprocessing(x))
+    test = test[args.test].map(lambda x: preprocessing(x))'''
 
     data_module = CreateDataModule(train, valid, test, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
     data_module.setup()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    model = EmotionClassifier(
+    model = BertClassifier(
         n_classes=N_CLASSES,
         drop_rate=DROP_RATE,
         pretrained_model=BERT_MODEL
@@ -236,7 +171,7 @@ def main(args):
     train_model(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
     
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
     parser.add_argument('--train_valid')
