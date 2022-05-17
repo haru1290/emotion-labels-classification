@@ -12,13 +12,13 @@ from transformers.tokenization_bert_japanese import BertJapaneseTokenizer
 
 
 TEXT_COLUMN = 'Sentence'
-LABEL_COLUMN = 'W_Joy'
+LABEL_COLUMN = 'Avg.'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
 N_EPOCHS = 10
 MAX_TOKEN_LEN = 128
-OUTPUT_SIZE = 4
+OUTPUT_SIZE = 5
 BATCH_SIZE = 32
 DROP_RATE = 0.1
 LEARNING_RATE = 2e-5
@@ -78,7 +78,7 @@ class CreateDataModule(pl.LightningDataModule):
         return DataLoader(self.valid_dataset, batch_size=self.batch_size, num_workers=os.cpu_count())
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=os.cpu_count())
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=os.cpu_count())
 
 
 class EmotionClassifier(pl.LightningModule):
