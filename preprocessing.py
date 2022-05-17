@@ -14,9 +14,9 @@ def main(args):
     valid.reset_index(drop=True, inplace=True)
     test.reset_index(drop=True, inplace=True)
 
-    train.to_csv('./data/train.tsv')
-    valid.to_csv('./data/valid.tsv')
-    test.to_csv('./data/test.tsv')
+    train.to_csv('./data/train.tsv', index=False, encoding='utf_8_sig')
+    valid.to_csv('./data/valid.tsv', index=False, encoding='utf_8_sig')
+    test.to_csv('./data/test.tsv', index=False, encoding='utf_8_sig')
 
 
 if __name__ == '__main__':

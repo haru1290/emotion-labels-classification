@@ -121,25 +121,10 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
     }
 
 
-'''def torch_fix_seed(random_seed=RANDOM_SEED):
-    random.seed(random_seed)
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    torch.cuda.manual_seed(random_seed)
-    torch.backends.cudnn.deterministic = True
-    torch.use_deterministic_algorithms = True'''
-
-
-def preprocessing(num):
-    return int(num) + 2
-
-
 def main(args):
-    df = pd.read_csv(args.wrime, header=0, sep='\t')
-
-    train = df[df['Train/Dev/Test'] == 'train'].loc[:,['Sentence', args.train_valid]].reset_index(drop=True)
-    valid = df[df['Train/Dev/Test'] == 'dev'].loc[:,['Sentence', args.train_valid]].reset_index(drop=True)
-    test = df[df['Train/Dev/Test'] == 'test'].loc[:,['Sentence', args.test]].reset_index(drop=True)
+    train = pd.read_csv(args.train, header=0, sep='\t').loc[:,['Sentence', 'Writer_Joy']]
+    valid = pd.read_csv(args.valid, header=0, sep='\t').loc[:,['Sentence', 'Writer_Joy']]
+    test = pd.read_csv(args.test, header=0, sep='\t').loc[:,['Sentence', 'writer_Joy']]
 
     '''train = train[args.train_valid].map(lambda x: preprocessing(x))
     valid = valid[args.train_valid].map(lambda x: preprocessing(x))
@@ -174,11 +159,11 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
+
     parser.add_argument('--train')
     parser.add_argument('--valid')
     parser.add_argument('--test')
+
     args = parser.parse_args()
 
-    # torch_fix_seed()
     main(args)
