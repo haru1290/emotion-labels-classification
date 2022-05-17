@@ -175,7 +175,8 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
-    parser.add_argument('--train_valid')
+    parser.add_argument('--train')
+    parser.add_argument('--valid')
     parser.add_argument('--test')
     args = parser.parse_args()
 
