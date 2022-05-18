@@ -79,6 +79,8 @@ def calculate_loss_and_scores(model, loader, criterion, device):
             y_preds.append(torch.argmax(output, dim=-1).cpu().numpy())
             y_true.append(labels.cpu().numpy())
 
+    print(y_preds, y_true)
+
     return {
         'loss': loss / len(loader),
         'accuracy': accuracy_score(y_preds, y_true),
