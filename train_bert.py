@@ -4,8 +4,6 @@
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import BertJapaneseTokenizer, BertModel
 from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_score
 from argparse import ArgumentParser
 from tqdm import tqdm
@@ -21,7 +19,7 @@ MODEL_PATH = 'models/model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
-N_EPOCHS = 10
+N_EPOCHS = 30
 N_CLASSES = 4
 MAX_TOKEN_LEN = 128
 BATCH_SIZE = 32
@@ -76,27 +74,25 @@ def calculate_loss_and_scores(model, loader, criterion, device):
 
             output = model(input_ids, attention_mask)
             loss += criterion(output, labels).item()
-            # y_preds += torch.argmax(output, dim=-1).cpu().numpy()
-            # y_true += labels.cpu().numpy()
             y_preds += torch.argmax(output, dim=-1).cpu().tolist()
             y_true += labels.cpu().tolist()
-
-    print(y_preds, y_true)
 
     return {
         'loss': loss / len(loader),
         'accuracy': accuracy_score(y_preds, y_true),
         'mean_absolute_error': mean_absolute_error(y_preds, y_true),
-        'cohen_kappa_score': cohen_kappa_score(y_preds, y_true, weight='quadratic')
+        'cohen_kappa_score': cohen_kappa_score(y_preds, y_true, weights='quadratic')
     }
 
 
-def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+def train_step(model, data_module, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+    train_dataloader = data_module.train_dataloader()
+    valid_dataloader = data_module.train_dataloader()
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
         model.train()
-        for batch in tqdm(train_dataloader, desc=f"[Train epoch {epoch + 1}]"):
+        for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -109,20 +105,24 @@ def train_model(model, train_dataloader, valid_dataloader, criterion, optimizer,
         
         train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
-        train_log.append([train_scores['loss'], train_scores['accuracy_score']])
-        valid_log.append([valid_scores['loss'], valid_scores['accuracy_score']])
+        train_log.append([train_scores['loss'], train_scores['accuracy']])
+        valid_log.append([valid_scores['loss'], valid_scores['accuracy']])
+
+        print(f"train_loss: {train_scores['loss']:.3f}, train_accuracy: {train_scores['accuracy']:.3f}, valid_loss: {valid_scores['loss']:.3f}, valid_accuracy: {valid_scores['accuracy']:.3f}")
 
         earlystopping(valid_scores['loss'], model)
         if earlystopping.early_stop:
             print("Early stopping")
             break
-        
-        print(f"train_loss: {train_scores['loss']:.3f}, train_accuracy: {train_scores['accuracy_score']:.3f}, valid_loss: {valid_scores['loss']:.3f}, valid_accuracy: {valid_scores['accuracy_score']:.3f}")
 
     return {
         'train_log': train_log,
         'valid_log': valid_log
     }
+
+
+def test_step(model, loader, criterion, device):
+    pass
 
 
 def main(args):
@@ -154,7 +154,7 @@ def main(args):
         verbose=True
     )
 
-    train_model(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
+    train_step(model, data_module, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
     
 
 if __name__ == '__main__':
