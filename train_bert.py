@@ -85,7 +85,7 @@ def calculate_loss_and_scores(model, loader, criterion, device):
     }
 
 
-def train(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
@@ -97,6 +97,8 @@ def train(model, train_dataloader, valid_dataloader, criterion, optimizer, early
 
             optimizer.zero_grad()
             output = model(input_ids, attention_mask)
+            print(output.shape, labels.shape)
+            return 0
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
@@ -149,11 +151,11 @@ def main(args):
     )
 
     # train_step
-    train(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
+    train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
 
     # test_step
-    test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
-    print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
+    # test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
+    # print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
 
 
 if __name__ == '__main__':
