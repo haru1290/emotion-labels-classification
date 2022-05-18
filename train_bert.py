@@ -19,7 +19,7 @@ MODEL_PATH = 'models/model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
-N_EPOCHS = 30
+N_EPOCHS = 10
 N_CLASSES = 4
 MAX_TOKEN_LEN = 128
 BATCH_SIZE = 32
@@ -79,15 +79,13 @@ def calculate_loss_and_scores(model, loader, criterion, device):
 
     return {
         'loss': loss / len(loader),
-        'accuracy': accuracy_score(y_preds, y_true),
+        'accuracy_score': accuracy_score(y_preds, y_true),
         'mean_absolute_error': mean_absolute_error(y_preds, y_true),
         'cohen_kappa_score': cohen_kappa_score(y_preds, y_true, weights='quadratic')
     }
 
 
-def train_step(model, data_module, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
-    train_dataloader = data_module.train_dataloader()
-    valid_dataloader = data_module.train_dataloader()
+def train(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
@@ -105,10 +103,10 @@ def train_step(model, data_module, criterion, optimizer, earlystopping, device, 
         
         train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
-        train_log.append([train_scores['loss'], train_scores['accuracy']])
-        valid_log.append([valid_scores['loss'], valid_scores['accuracy']])
+        train_log.append(train_scores['loss'])
+        valid_log.append(valid_scores['loss'])
 
-        print(f"train_loss: {train_scores['loss']:.3f}, train_accuracy: {train_scores['accuracy']:.3f}, valid_loss: {valid_scores['loss']:.3f}, valid_accuracy: {valid_scores['accuracy']:.3f}")
+        print(f"train_loss: {train_scores['loss']:.3f},  valid_loss: {valid_scores['loss']:.3f}")
 
         earlystopping(valid_scores['loss'], model)
         if earlystopping.early_stop:
@@ -119,10 +117,6 @@ def train_step(model, data_module, criterion, optimizer, earlystopping, device, 
         'train_log': train_log,
         'valid_log': valid_log
     }
-
-
-def test_step(model, loader, criterion, device):
-    pass
 
 
 def main(args):
@@ -154,8 +148,13 @@ def main(args):
         verbose=True
     )
 
-    train_step(model, data_module, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
-    
+    # train_step
+    train(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
+
+    # test_step
+    test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
+    print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()

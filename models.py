@@ -19,6 +19,7 @@ class BertClassifier(torch.nn.Module):
 
     def forward(self, input_ids, attention_mask):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
+        print(self.bert(input_ids, attention_mask=attention_mask))
         preds = self.classifier(self.drop(pooler_output))
 
         # return self.softmax(preds)
