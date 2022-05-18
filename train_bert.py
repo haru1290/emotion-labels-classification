@@ -76,8 +76,10 @@ def calculate_loss_and_scores(model, loader, criterion, device):
 
             output = model(input_ids, attention_mask)
             loss += criterion(output, labels).item()
-            y_preds.append(torch.argmax(output, dim=-1).cpu().numpy())
-            y_true.append(labels.cpu().numpy())
+            # y_preds += torch.argmax(output, dim=-1).cpu().numpy()
+            # y_true += labels.cpu().numpy()
+            y_preds += torch.argmax(output, dim=-1).cpu().tolist()
+            y_true += labels.cpu().tolist()
 
     print(y_preds, y_true)
 
