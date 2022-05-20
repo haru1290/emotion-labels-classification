@@ -15,7 +15,7 @@ from models import BertClassifier
 RANDOM_SEED = 123
 
 PATIENCE = 3
-MODEL_PATH = 'models/model.pth'
+MODEL_PATH = './models/model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
