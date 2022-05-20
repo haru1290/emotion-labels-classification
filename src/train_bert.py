@@ -15,7 +15,7 @@ from models import BertClassifier
 RANDOM_SEED = 123
 
 PATIENCE = 3
-MODEL_PATH = './models/model.pth'
+BEST_MODEL_PATH = './models/best_model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
@@ -55,9 +55,9 @@ class EarlyStopping:
 
     def save_checkpoint(self, val_loss, model):
         if self.verbose:
-            print(f"Validation loss decreased ({self.val_loss_min:.3f} --> {val_loss:.3f}). Saving model ...")
+            print(f"Validation qwk decreased ({self.val_loss_min:.3f} --> {val_loss:.3f}). Saving model ...")
             
-        torch.save(model.state_dict(), 'models/model.pth')
+        torch.save(model.state_dict(), BEST_MODEL_PATH)
         self.val_loss_min = val_loss
 
 
@@ -106,7 +106,7 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
         train_log.append(train_scores['cohen_kappa_score'])
         valid_log.append(valid_scores['cohen_kappa_score'])
 
-        print(f"train_QWK: {train_scores['cohen_kappa_score']:.3f},  valid_QWK: {valid_scores['cohen_kappa_score']:.3f}")
+        print(f"train_qwk: {train_scores['cohen_kappa_score']:.3f},  valid_qwk: {valid_scores['cohen_kappa_score']:.3f}")
 
         earlystopping(valid_scores['cohen_kappa_score'], model)
         if earlystopping.early_stop:
@@ -152,8 +152,9 @@ def main(args):
     train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
 
     # test_step
+    model.load_state_dict(torch.load(BEST_MODEL_PATH))
     test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
-    print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
+    print(f"[Test] ACC: {test_scores['accuracy_score']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
 
 
 if __name__ == '__main__':
