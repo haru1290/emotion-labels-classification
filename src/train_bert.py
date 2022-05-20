@@ -97,20 +97,18 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
 
             optimizer.zero_grad()
             output = model(input_ids, attention_mask)
-            print(output.shape, labels.shape)
-            return 0
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
         
         train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
-        train_log.append(train_scores['loss'])
-        valid_log.append(valid_scores['loss'])
+        train_log.append(train_scores['cohen_kappa_score'])
+        valid_log.append(valid_scores['cohen_kappa_score'])
 
-        print(f"train_loss: {train_scores['loss']:.3f},  valid_loss: {valid_scores['loss']:.3f}")
+        print(f"train_QWK: {train_scores['cohen_kappa_score']:.3f},  valid_QWK: {valid_scores['cohen_kappa_score']:.3f}")
 
-        earlystopping(valid_scores['loss'], model)
+        earlystopping(valid_scores['cohen_kappa_score'], model)
         if earlystopping.early_stop:
             print("Early stopping")
             break
@@ -154,8 +152,8 @@ def main(args):
     train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
 
     # test_step
-    # test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
-    # print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
+    test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
+    print(f"[Test] ACC: {test_scores['accuracy_scores']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
 
 
 if __name__ == '__main__':
