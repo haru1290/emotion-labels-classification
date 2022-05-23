@@ -22,7 +22,7 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
 
-    parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
+    parser.add_argument('--wrime', default='./data/wrime-ver1.tsv')
     parser.add_argument('--train', default='./data/train.tsv')
     parser.add_argument('--valid', default='./data/valid.tsv')
     parser.add_argument('--test', default='./data/test.tsv')
