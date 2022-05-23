@@ -19,7 +19,7 @@ BEST_MODEL_PATH = './models/best_model.pth'
 
 BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
 
-N_EPOCHS = 10
+N_EPOCHS = 15
 N_CLASSES = 4
 MAX_TOKEN_LEN = 128
 BATCH_SIZE = 32
