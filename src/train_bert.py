@@ -34,7 +34,7 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_qwk_min = np.Inf
+        self.val_qwk_max = np.Inf
         self.force_cancel = False
 
     def __call__(self, val_qwk, model):
@@ -56,10 +56,10 @@ class EarlyStopping:
 
     def save_checkpoint(self, val_qwk, model):
         if self.verbose:
-            print(f"Validation qwk increased ({self.val_qwk_min:.3f} --> {val_qwk:.3f}). Saving model ...")
+            print(f"Validation qwk increased ({self.val_qwk_max:.3f} --> {val_qwk:.3f}). Saving model ...")
             
         torch.save(model.state_dict(), BEST_MODEL_PATH)
-        self.val_qwk_min = val_qwk
+        self.val_qwk_max = val_qwk
 
 
 def calculate_loss_and_scores(model, loader, criterion, device):
