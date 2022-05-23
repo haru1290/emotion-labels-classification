@@ -21,7 +21,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--wrime', default='./data/wrime-ver2.tsv')
+    parser.add_argument('--wrime', default='./data/wrime-ver1.tsv')
     args = parser.parse_args()
 
     main(args)

@@ -34,15 +34,15 @@ class EarlyStopping:
         self.counter = 0
         self.best_score = None
         self.early_stop = False
-        self.val_loss_min = np.Inf
+        self.val_qwk_min = np.Inf
         self.force_cancel = False
 
-    def __call__(self, val_loss, model):
-        score = -val_loss
+    def __call__(self, val_qwk, model):
+        score = -val_qwk
 
         if self.best_score is None:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_qwk, model)
         elif score < self.best_score:
             self.counter += 1
             print(f"EarlyStopping counter: {self.counter} out of {self.patience}")
@@ -50,15 +50,15 @@ class EarlyStopping:
                 self.early_stop = True
         else:
             self.best_score = score
-            self.save_checkpoint(val_loss, model)
+            self.save_checkpoint(val_qwk, model)
             self.counter = 0
 
-    def save_checkpoint(self, val_loss, model):
+    def save_checkpoint(self, val_qwk, model):
         if self.verbose:
-            print(f"Validation qwk decreased ({self.val_loss_min:.3f} --> {val_loss:.3f}). Saving model ...")
+            print(f"Validation qwk increased ({self.val_qwk_min:.3f} --> {val_qwk:.3f}). Saving model ...")
             
         torch.save(model.state_dict(), BEST_MODEL_PATH)
-        self.val_loss_min = val_loss
+        self.val_loss_min = val_qwk
 
 
 def calculate_loss_and_scores(model, loader, criterion, device):
