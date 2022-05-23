@@ -59,7 +59,7 @@ class EarlyStopping:
             print(f"Validation qwk increased ({self.val_qwk_min:.3f} --> {val_qwk:.3f}). Saving model ...")
             
         torch.save(model.state_dict(), BEST_MODEL_PATH)
-        self.val_loss_min = val_qwk
+        self.val_qwk_min = val_qwk
 
 
 def calculate_loss_and_scores(model, loader, criterion, device):
