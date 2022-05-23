@@ -57,7 +57,7 @@ class EarlyStopping:
     def save_checkpoint(self, val_qwk, model):
         if self.verbose:
             print(f"Validation qwk increased ({self.val_qwk_max:.3f} --> {val_qwk:.3f}). Saving model ...")
-            
+
         torch.save(model.state_dict(), BEST_MODEL_PATH)
         self.val_qwk_max = val_qwk
 
@@ -161,9 +161,9 @@ def main(args):
 if __name__ == '__main__':
     parser = ArgumentParser()
 
-    parser.add_argument('--train')
-    parser.add_argument('--valid')
-    parser.add_argument('--test')
+    parser.add_argument('--train', default='./data/train.tsv')
+    parser.add_argument('--valid', default='./data/valid.tsv')
+    parser.add_argument('--test', default='./data/test.tsv')
 
     args = parser.parse_args()
 
