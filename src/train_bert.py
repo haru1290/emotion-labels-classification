@@ -133,8 +133,6 @@ def main(args):
     )
     data_module.setup()
 
-    data_module.train_dataloader()
-
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     model = BertClassifier(
