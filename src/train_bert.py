@@ -142,13 +142,14 @@ def main(args):
         drop_rate=DROP_RATE,
         pretrained_model=BERT_MODEL
     )
+    model = torch.nn.DataParallel(model, device_ids=[0, 1])
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam([
-        {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
-        {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
+        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
+        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
     earlystopping = EarlyStopping(
         patience=PATIENCE,
