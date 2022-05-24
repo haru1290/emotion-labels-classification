@@ -63,7 +63,7 @@ class EarlyStopping:
 
 
 def calculate_loss_and_scores(model, loader, criterion, device):
-    model.module.eval()
+    model.eval()
     y_preds =[]
     y_true =[]
     loss = 0.0
@@ -90,7 +90,7 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
-        model.module.train()
+        model.train()
         for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
@@ -140,7 +140,7 @@ def main(args):
         drop_rate=DROP_RATE,
         pretrained_model=BERT_MODEL
     )
-    model = torch.nn.DataParallel(model, device_ids=[0])
+    model = torch.nn.DataParallel(model, device_ids=[0, 1])
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
