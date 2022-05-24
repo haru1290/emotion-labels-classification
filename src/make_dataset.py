@@ -57,6 +57,7 @@ class CreateDataModule():
         self.test_dataset = CreateDataset(self.test, self.tokenizer, self.max_token_len)
 
     def train_dataloader(self):
+        print(os.cpu_count())
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count())
 
     def valid_dataloader(self):

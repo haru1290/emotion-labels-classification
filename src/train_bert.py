@@ -140,7 +140,7 @@ def main(args):
         drop_rate=DROP_RATE,
         pretrained_model=BERT_MODEL
     )
-    model = torch.nn.DataParallel(model, device_ids=[0, 1])
+    model = torch.nn.DataParallel(model, device_ids=[1, 2])
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
