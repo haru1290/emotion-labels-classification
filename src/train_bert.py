@@ -133,7 +133,7 @@ def main(args):
     )
     data_module.setup()
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     model = BertClassifier(
         n_classes=N_CLASSES,
