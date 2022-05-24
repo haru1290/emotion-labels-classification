@@ -125,10 +125,17 @@ def main(args):
     valid = pd.read_csv(args.valid, header=0, sep='\t')
     test = pd.read_csv(args.test, header=0, sep='\t')
 
-    data_module = CreateDataModule(train, valid, test, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL)
+    data_module = CreateDataModule(
+        train, valid, test,
+        batch_size=BATCH_SIZE,
+        max_token_len=MAX_TOKEN_LEN,
+        pretrained_model=BERT_MODEL
+    )
     data_module.setup()
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    data_module.train_dataloader()
+
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     model = BertClassifier(
         n_classes=N_CLASSES,
@@ -143,16 +150,13 @@ def main(args):
         {'params': model.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
-
     earlystopping = EarlyStopping(
         patience=PATIENCE,
         verbose=True
     )
 
-    # train_step
     train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
 
-    # test_step
     model.load_state_dict(torch.load(BEST_MODEL_PATH))
     test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
     print(f"[Test] ACC: {test_scores['accuracy_score']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
