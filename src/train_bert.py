@@ -12,8 +12,6 @@ from make_dataset import CreateDataModule
 from models import BertClassifier
 
 
-RANDOM_SEED = 123
-
 PATIENCE = 3
 BEST_MODEL_PATH = './models/best_model.pth'
 
@@ -140,7 +138,6 @@ def main(args):
         drop_rate=DROP_RATE,
         pretrained_model=BERT_MODEL
     )
-    model = torch.nn.DataParallel(model, device_ids=[0])
     model.to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
@@ -149,6 +146,7 @@ def main(args):
         {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
         {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
     ])
+    
     earlystopping = EarlyStopping(
         patience=PATIENCE,
         verbose=True
