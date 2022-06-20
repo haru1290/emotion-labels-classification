@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_absolute_error
 from sklearn.metrics import cohen_kappa_score
 
-import csv
+from earlystopping import EarlyStopping
 
 sys.path.append("./hottoSNS-bert/src/")
 import tokenization
@@ -26,8 +26,9 @@ DROP_RATE = 0.1
 HIDDEN_SIZE = 768
 OUTPUT_SIZE = 4
 BATCH_SIZE = 32
-NUM_EPOCHS = 15 # no early-stopping
+NUM_EPOCHS = 15
 LEARNING_RATE = 2e-5
+PATIENCE = 3
 
 
 class CreateDataset(Dataset):
@@ -59,7 +60,7 @@ class CreateDataset(Dataset):
             'uids': torch.LongTensor(uids),
             'ids': torch.LongTensor(ids),
             'mask': torch.LongTensor(mask),
-            'labels': torch.LongTensor(self.y[index]) 
+            'labels': torch.LongTensor(self.y[index])
         }
 
 
@@ -73,7 +74,7 @@ class BERTClass(torch.nn.Module):
     def forward(self, ids, mask, uids, mlp_feature, mode=None):
         output = self.bert(ids, attention_mask=mask)[2][-1][:,0]
 
-        lst = torch.empty(len(output), 768).to('cuda:0')
+        '''lst = torch.empty(len(output), 768).to('cuda:0')
         if mode == 'product':
             for i in range(len(output)):
                 lst[i] = output[i] * mlp_feature[uids[i][0].item()-1]
@@ -81,14 +82,14 @@ class BERTClass(torch.nn.Module):
         elif mode == 'concat':
             for i in range(len(output)):
                 lst[i] = torch.cat((output[i], mlp_feature[uids[i][0].item()-1]), 0)
-            output = lst
+            output = lst'''
 
         output = self.fc(self.drop(output))
 
         return output
 
 
-def train_model(dataset_train, dataset_valid, batch_size, model, criterion, optimizer, num_epochs, mlp_feature, model_path, device=None):
+def train_model(dataset_train, dataset_valid, batch_size, model, criterion, optimizer, earlystopping, num_epochs, mlp_feature, model_path, device=None):
     model.to(device)
 
     dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
@@ -152,10 +153,11 @@ def train_model(dataset_train, dataset_valid, batch_size, model, criterion, opti
         
         valid_loss = valid_loss / valid_total
         valid_acc = valid_acc / valid_total
-   
-        print(f"epoch：{epoch+1}、train_loss：{train_loss}、train_acc：{train_acc}, valid_loss：{valid_loss}、valid_acc：{valid_acc}")
 
-    torch.save(model.state_dict(), model_path)
+        earlystopping(valid_loss, model)
+        if earlystopping.early_stop:
+            print("Early stopping")
+            break
 
     
 def main():
@@ -253,7 +255,12 @@ def main():
 
     mlp_feature = torch.load('test.pt')
 
-    train_model(dataset_train, dataset_valid, BATCH_SIZE, model, criterion, optimizer, NUM_EPOCHS, mlp_feature, model_path, device=device)
+    earlystopping = EarlyStopping(
+        patience=PATIENCE,
+        verbose=True
+    )
+
+    # train_model(dataset_train, dataset_valid, BATCH_SIZE, model, criterion, optimizer, earlystopping, NUM_EPOCHS, mlp_feature, model_path, device=device)
     
     # テスト
     dataloader_test = DataLoader(dataset_test, batch_size=1, shuffle=False)
