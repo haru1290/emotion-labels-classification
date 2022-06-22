@@ -23,6 +23,7 @@ class CreateDataset(Dataset):
 
     def __getitem__(self, index):
         data_row = self.data.iloc[index]
+        user_ids = data_row['UserID']
         text = data_row['Sentence']
         labels = data_row['Writer_Joy']
 
@@ -38,7 +39,8 @@ class CreateDataset(Dataset):
         return {
             'input_ids': encoding['input_ids'].flatten(),
             'attention_mask': encoding['attention_mask'].flatten(),
-            'labels': torch.tensor(labels)
+            'labels': torch.tensor(labels),
+            'user_ids': torch.tensor(user_ids)
         }
 
 
