@@ -51,7 +51,7 @@ def calculate_loss_and_scores(model, loader, criterion, device):
     y_true =[]
     loss = 0.0
     with torch.no_grad():
-        for batch in loader:
+        for batch in tqdm(loader):
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
@@ -89,8 +89,6 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
         train_log.append(train_scores['cohen_kappa_score'])
         valid_log.append(valid_scores['cohen_kappa_score'])
-
-        print(f"train_qwk: {train_scores['cohen_kappa_score']:.3f},  valid_qwk: {valid_scores['cohen_kappa_score']:.3f}")
 
         earlystopping(valid_scores['cohen_kappa_score'], model)
         if earlystopping.early_stop:
