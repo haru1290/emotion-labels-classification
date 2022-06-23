@@ -1,9 +1,7 @@
-#
-# train_bert.py
-#
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_score
 from argparse import ArgumentParser
 from tqdm import tqdm
@@ -12,21 +10,9 @@ from make_dataset import CreateDataModule
 from models import BertClassifier
 
 
-PATIENCE = 3
-BEST_MODEL_PATH = './models/best_model.pth'
-
-BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
-
-N_EPOCHS = 15
-N_CLASSES = 4
-MAX_TOKEN_LEN = 128
-BATCH_SIZE = 32
-DROP_RATE = 0.1
-LEARNING_RATE = 2e-5
-
-
 class EarlyStopping:
-    def __init__(self, patience=PATIENCE, verbose=False):
+    def __init__(self, best_model, patience, verbose=False):
+        self.best_model = best_model
         self.patience = patience
         self.verbose = verbose
         self.counter = 0
@@ -55,7 +41,7 @@ class EarlyStopping:
         if self.verbose:
             print(f"Validation qwk increased ({self.val_qwk_max:.3f} --> {val_qwk:.3f}). Saving model ...")
 
-        torch.save(model.state_dict(), BEST_MODEL_PATH)
+        torch.save(model.state_dict(), self.best_model)
         self.val_qwk_max = val_qwk
 
 
@@ -83,7 +69,7 @@ def calculate_loss_and_scores(model, loader, criterion, device):
     }
 
 
-def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS):
+def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, n_epochs, device):
     train_log = []
     valid_log = []
     for epoch in range(n_epochs):
@@ -124,36 +110,37 @@ def main(args):
 
     data_module = CreateDataModule(
         train, valid, test,
-        batch_size=BATCH_SIZE,
-        max_token_len=MAX_TOKEN_LEN,
-        pretrained_model=BERT_MODEL
+        batch_size=args.batch_size,
+        max_token_len=args.max_token_len,
+        pretrained_model=args.pretrained
     )
     data_module.setup()
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     model = BertClassifier(
-        n_classes=N_CLASSES,
-        drop_rate=DROP_RATE,
-        pretrained_model=BERT_MODEL
+        n_classes=args.n_class,
+        drop_rate=args.drop_rate,
+        pretrained_model=args.pretrained
     )
     model.to(device)
 
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
 
     optimizer = torch.optim.Adam([
-        {'params': model.module.bert.parameters(), 'lr': LEARNING_RATE},
-        {'params': model.module.classifier.parameters(), 'lr': LEARNING_RATE}
+        {'params': model.bert.parameters(), 'lr': args.learning_rate},
+        {'params': model.classifier.parameters(), 'lr': args.learning_rate}
     ])
     
     earlystopping = EarlyStopping(
-        patience=PATIENCE,
-        verbose=True
+        best_model=args.best_model,
+        patience=args.patience,
+        verbose=args.verbose
     )
 
-    train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, device, n_epochs=N_EPOCHS)
+    train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, args.n_epochs, device)
 
-    model.load_state_dict(torch.load(BEST_MODEL_PATH))
+    model.load_state_dict(torch.load(args.best_model))
     test_scores = calculate_loss_and_scores(model, data_module.test_dataloader(), criterion, device)
     print(f"[Test] ACC: {test_scores['accuracy_score']:.3f}, MAE: {test_scores['mean_absolute_error']:.3f}, QWK: {test_scores['cohen_kappa_score']:.3f}")
 
@@ -164,6 +151,19 @@ if __name__ == '__main__':
     parser.add_argument('--train', default='./data/train.tsv')
     parser.add_argument('--valid', default='./data/valid.tsv')
     parser.add_argument('--test', default='./data/test.tsv')
+
+    parser.add_argument('--pretrained', default='cl-tohoku/bert-base-japanese-whole-word-masking')
+
+    parser.add_argument('--n_epochs', default=100)
+    parser.add_argument('--n_class', default=5)
+    parser.add_argument('--max_token_len', default=128)
+    parser.add_argument('--batch_size', default=32)
+    parser.add_argument('--drop_rate', default=0.1)
+    parser.add_argument('--learning_rate', default=2e-5)
+
+    parser.add_argument('--patience', default=3)
+    parser.add_argument('--verbose', default=True)
+    parser.add_argument('--best_model', default='./models/best_model.pth')
 
     args = parser.parse_args()
 

@@ -23,9 +23,9 @@ class CreateDataset(Dataset):
 
     def __getitem__(self, index):
         data_row = self.data.iloc[index]
-        user_ids = data_row['UserID']
         text = data_row['Sentence']
-        labels = data_row['Writer_Joy']
+        labels = data_row['Writer_Sentiment']
+        user_ids = data_row['UserID']
 
         encoding = self.tokenizer.encode_plus(
             text,
@@ -59,10 +59,10 @@ class CreateDataModule():
         self.test_dataset = CreateDataset(self.test, self.tokenizer, self.max_token_len)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count(), pin_memory=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count())
 
     def valid_dataloader(self):
-        return DataLoader(self.valid_dataset, batch_size=self.batch_size, shuffle=False, num_workers=os.cpu_count(), pin_memory=True)
+        return DataLoader(self.valid_dataset, batch_size=self.batch_size, shuffle=False, num_workers=os.cpu_count())
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count(), pin_memory=True)
+        return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count())

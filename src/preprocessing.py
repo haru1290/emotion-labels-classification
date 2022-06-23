@@ -5,6 +5,12 @@ from argparse import ArgumentParser
 
 def main(args):
     df = pd.read_csv(args.wrime, header=0, sep='\t')
+
+    df['Writer_Sentiment'] = df['Writer_Sentiment'] + 2
+    df['Reader1_Sentiment'] = df['Reader1_Sentiment'] + 2
+    df['Reader2_Sentiment'] = df['Reader2_Sentiment'] + 2
+    df['Reader3_Sentiment'] = df['Reader3_Sentiment'] + 2
+    df['Avg. Readers_Sentiment'] = df['Avg. Readers_Sentiment'] + 2
     
     train = df[df['Train/Dev/Test'] == 'train']
     valid = df[df['Train/Dev/Test'] == 'dev']
