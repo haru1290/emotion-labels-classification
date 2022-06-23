@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 
 from make_dataset import CreateDataModule
-from models import BertClassifier
+from models import BertWikiClassifier
 
 
 class EarlyStopping:
@@ -116,7 +116,7 @@ def main(args):
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-    model = BertClassifier(
+    model = BertWikiClassifier(
         n_classes=args.n_class,
         drop_rate=args.drop_rate,
         pretrained_model=args.pretrained

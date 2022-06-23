@@ -1,15 +1,7 @@
-#
-# make_dataset.py
-#
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertJapaneseTokenizer
-
-
-BERT_MODEL = 'cl-tohoku/bert-base-japanese-whole-word-masking'
-MAX_TOKEN_LEN = 128
-BATCH_SIZE = 32
 
 
 class CreateDataset(Dataset):
@@ -45,7 +37,7 @@ class CreateDataset(Dataset):
 
 
 class CreateDataModule():
-    def __init__(self, train, valid, test, batch_size=BATCH_SIZE, max_token_len=MAX_TOKEN_LEN, pretrained_model=BERT_MODEL):
+    def __init__(self, train, valid, test, batch_size, max_token_len, pretrained_model):
         self.train = train
         self.valid = valid
         self.test = test
@@ -62,7 +54,7 @@ class CreateDataModule():
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=os.cpu_count())
 
     def valid_dataloader(self):
-        return DataLoader(self.valid_dataset, batch_size=self.batch_size, shuffle=False, num_workers=os.cpu_count())
+        return DataLoader(self.valid_dataset, batch_size=len(self.valid_dataset), shuffle=False, num_workers=os.cpu_count())
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=1, shuffle=False, num_workers=os.cpu_count())
+        return DataLoader(self.test_dataset, batch_size=len(self.test_dataset), shuffle=False, num_workers=os.cpu_count())
