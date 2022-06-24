@@ -59,7 +59,7 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
             break
 
 
-def torch_fix_seed(seed=0):
+def torch_fix_seed(seed=1):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -87,7 +87,8 @@ def main(args):
     model = BertWikiClassifier(
         n_classes=args.n_class,
         drop_rate=args.drop_rate,
-        pretrained_model=args.pretrained
+        pretrained_model=args.pretrained,
+        mode=args.mode
     )
     model.to(device)
 
@@ -130,6 +131,8 @@ if __name__ == '__main__':
     parser.add_argument('--patience', default=3)
     parser.add_argument('--verbose', default=True)
     parser.add_argument('--best_model', default='./models/best_model.pth')
+
+    parser.add_argument('--mode', default=None)
 
     args = parser.parse_args()
 
