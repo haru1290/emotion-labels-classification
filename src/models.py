@@ -17,7 +17,7 @@ class BertWikiClassifier(nn.Module):
         if self.mode == 'Product':
             pooler_output = pooler_output * user_features
         elif self.mode == 'Concat':
-            pooler_output = torch.unsqueeze([pooler_output, user_features], dim=1)
+            pooler_output = torch.cat([pooler_output, user_features], dim=1)
 
         preds = self.classifier(self.drop(pooler_output))
 
