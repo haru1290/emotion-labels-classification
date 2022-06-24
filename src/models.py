@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import BertModel
+from transformers import BertModel, BertForPreTraining
 
 
 class BertWikiClassifier(nn.Module):
@@ -21,7 +21,7 @@ class BertWikiClassifier(nn.Module):
 class BertSNSClassifier(nn.Module):
     def __init__(self, n_classes: int, drop_rate, pretrained_model):
         super().__init__()
-        self.bert = BertModel.from_pretrained(pretrained_model)
+        self.bert = BertForPreTraining.from_pretrained(pretrained_model)
         self.drop = nn.Dropout(drop_rate)
         self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
 
