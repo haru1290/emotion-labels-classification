@@ -51,12 +51,13 @@ def calculate_loss_and_scores(model, loader, criterion, device):
     y_true =[]
     loss = 0.0
     with torch.no_grad():
-        for batch in tqdm(loader):
+        for batch in loader:
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
+            user_features = batch['user_features'].to(device)
 
-            output = model(input_ids, attention_mask)
+            output = model(input_ids, attention_mask, user_features)
             loss += criterion(output, labels).item()
             y_preds += torch.argmax(output, dim=-1).cpu().tolist()
             y_true += labels.cpu().tolist()
@@ -78,16 +79,17 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
+            user_features = batch['user_features'].to(device)
 
             optimizer.zero_grad()
-            output = model(input_ids, attention_mask)
+            output = model(input_ids, attention_mask, user_features)
             loss = criterion(output, labels)
             loss.backward()
             optimizer.step()
         
-        train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
+        # train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
-        train_log.append(train_scores['cohen_kappa_score'])
+        # train_log.append(train_scores['cohen_kappa_score'])
         valid_log.append(valid_scores['cohen_kappa_score'])
 
         earlystopping(valid_scores['cohen_kappa_score'], model)
@@ -96,7 +98,7 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
             break
 
     return {
-        'train_log': train_log,
+        # 'train_log': train_log,
         'valid_log': valid_log
     }
 
@@ -110,7 +112,8 @@ def main(args):
         train, valid, test,
         batch_size=args.batch_size,
         max_token_len=args.max_token_len,
-        pretrained_model=args.pretrained
+        pretrained_model=args.pretrained,
+        user_features=torch.load('models/user_features.pt', map_location=torch.device('cpu'))
     )
     data_module.setup()
 
@@ -119,9 +122,12 @@ def main(args):
     model = BertWikiClassifier(
         n_classes=args.n_class,
         drop_rate=args.drop_rate,
-        pretrained_model=args.pretrained
+        pretrained_model=args.pretrained,
+        mode=args.mode
     )
     model.to(device)
+
+    print(data_module.train_dataset[0])
 
     criterion = nn.CrossEntropyLoss()
 
@@ -162,6 +168,8 @@ if __name__ == '__main__':
     parser.add_argument('--patience', default=3)
     parser.add_argument('--verbose', default=True)
     parser.add_argument('--best_model', default='./models/best_model.pth')
+
+    parser.add_argument('--mode', default=None)
 
     args = parser.parse_args()
 
