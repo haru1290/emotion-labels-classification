@@ -8,9 +8,11 @@ class BertWikiClassifier(nn.Module):
         super().__init__()
         self.bert = BertModel.from_pretrained(pretrained_model)
         self.drop = nn.Dropout(drop_rate)
-        # self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
-        self.classifier = nn.Linear(1536, n_classes)
         self.mode = mode
+        if self.mode == 'Concat':
+            self.classifier = nn.Linear(1536, n_classes)
+        else:
+            self.classifier = nn.Linear(self.bert.config.hidden_size, n_classes)
 
     def forward(self, input_ids, attention_mask, user_features):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
@@ -21,7 +23,7 @@ class BertWikiClassifier(nn.Module):
             output = torch.cat([pooler_output, user_features], dim=1)
         else:
             output = pooler_output
-            
+
         preds = self.classifier(self.drop(output))
 
         return preds
