@@ -13,11 +13,12 @@ class BertWikiClassifier(nn.Module):
 
     def forward(self, input_ids, attention_mask, user_features):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
-        '''pooler_output = pooler_output + user_features
-        pooler_output = pooler_output - user_features
-        pooler_output = pooler_output * user_features'''
+
         if self.mode == 'Product':
             pooler_output = pooler_output * user_features
+        elif self.mode == 'Concat':
+            pooler_output = torch.unsqueeze([pooler_output, user_features], dim=1)
+
         preds = self.classifier(self.drop(pooler_output))
 
         return preds
