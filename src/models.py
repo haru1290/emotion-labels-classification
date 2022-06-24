@@ -12,7 +12,9 @@ class BertWikiClassifier(nn.Module):
 
     def forward(self, input_ids, attention_mask, user_features):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
-        # pooler_output = pooler_output * user_features
+        '''pooler_output = pooler_output + user_features
+        pooler_output = pooler_output - user_features
+        pooler_output = pooler_output * user_features'''
         preds = self.classifier(self.drop(pooler_output))
 
         return preds
@@ -27,7 +29,6 @@ class BertSNSClassifier(nn.Module):
 
     def forward(self, input_ids, attention_mask, user_features):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
-        # pooler_output = pooler_output * user_features
         preds = self.classifier(self.drop(pooler_output))
 
         return preds

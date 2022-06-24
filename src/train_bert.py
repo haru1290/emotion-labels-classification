@@ -78,7 +78,7 @@ def main(args):
         batch_size=args.batch_size,
         max_token_len=args.max_token_len,
         pretrained_model=args.pretrained,
-        user_features=torch.load('models/user_features.pt', map_location=torch.device('cpu'))
+        user_features=torch.load('data/user_features.pt', map_location=torch.device('cpu'))
     )
     data_module.setup()
 
