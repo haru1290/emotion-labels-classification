@@ -38,8 +38,6 @@ def calculate_loss_and_scores(model, loader, criterion, device):
 
 
 def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, earlystopping, n_epochs, device):
-    train_log = []
-    valid_log = []
     for epoch in range(n_epochs):
         model.train()
         for batch in tqdm(train_dataloader, desc=f"[Epoch {epoch + 1}]"):
@@ -54,20 +52,11 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
             loss.backward()
             optimizer.step()
         
-        # train_scores = calculate_loss_and_scores(model, train_dataloader, criterion, device)
         valid_scores = calculate_loss_and_scores(model, valid_dataloader, criterion, device)
-        # train_log.append(train_scores['cohen_kappa_score'])
-        valid_log.append(valid_scores['cohen_kappa_score'])
-
         earlystopping(valid_scores['cohen_kappa_score'], model)
         if earlystopping.early_stop:
             print("Early stopping")
             break
-
-    return {
-        # 'train_log': train_log,
-        'valid_log': valid_log
-    }
 
 
 def torch_fix_seed(seed=0):
