@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import pandas as pd
 import torch
@@ -103,6 +104,15 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
     }
 
 
+def torch_fix_seed(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.use_deterministic_algorithms = True
+
+
 def main(args):
     train = pd.read_csv(args.train, header=0, sep='\t')
     valid = pd.read_csv(args.valid, header=0, sep='\t')
@@ -122,12 +132,9 @@ def main(args):
     model = BertWikiClassifier(
         n_classes=args.n_class,
         drop_rate=args.drop_rate,
-        pretrained_model=args.pretrained,
-        mode=args.mode
+        pretrained_model=args.pretrained
     )
     model.to(device)
-
-    print(data_module.train_dataset[0])
 
     criterion = nn.CrossEntropyLoss()
 
@@ -157,7 +164,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', default='./data/test.tsv')
 
     parser.add_argument('--pretrained', default='cl-tohoku/bert-base-japanese-whole-word-masking')
-
+    
     parser.add_argument('--n_epochs', default=100)
     parser.add_argument('--n_class', default=5)
     parser.add_argument('--max_token_len', default=128)
@@ -169,8 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', default=True)
     parser.add_argument('--best_model', default='./models/best_model.pth')
 
-    parser.add_argument('--mode', default=None)
-
     args = parser.parse_args()
 
+    torch_fix_seed()
     main(args)
