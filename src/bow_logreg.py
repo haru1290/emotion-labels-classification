@@ -1,3 +1,4 @@
+from xml.etree.ElementPath import prepare_descendant
 import numpy as np
 import pandas as pd
 import MeCab
@@ -19,12 +20,12 @@ class LogRegClass:
         self.model = LogisticRegression(C=C, random_state=RANDOM_STATE)
         self.model.fit(X_train, y_train)
 
-        return model
+        return self.model
 
     def predict(self, X):
-        pred = self.model.predict(x)
+        pred = self.model.predict(X)
 
-        return predict
+        return pred
 
 
 def tokenizer(text):
@@ -47,12 +48,9 @@ def calculate_score(preds, labels):
 
 
 def main(args):
-    df = pd.read_csv(args.corpus, header=0)
-    df['Sentence'] = df['Sentence'].map(lambda x: tokenizer(x))
-
-    train = df[df['Train/Div/Test'] == 'train'].reset_index(drop=True)
-    valid = df[df['Train/Div/Test'] == 'dev'].reset_index(drop=True)
-    test = df[df['Train/Div/Test'] == 'test'].reset_index(drop=True)
+    train = pd.read_csv(args.train, header=0, sep='\t')
+    valid = pd.read_csv(args.valid, header=0, sep='\t')
+    test = pd.read_csv(args.test, header=0, sep='\t')
 
     train_valid = pd.concat([train, valid], axis=0)
     train_valid.reset_index(drop=True, inplace=True)
@@ -63,18 +61,22 @@ def main(args):
 
     X_train_valid = pd.DataFrame(X_train_valid.toarray(), columns=vectorizer.get_feature_names())
     X_test = pd.DataFrame(X_test.toarray(), columns=vectorizer.get_feature_names())
+    print(X_test)
+
+    return
 
     X_train = X_train_valid[:len(train)]
     X_valid = X_train_valid[len(train):]
 
     results = []
+    model = LogRegClass()
     for C in tqdm([0.01, 0.1, 1, 10, 100]):
-        lg = train_model(X_train, args.y_train, C)
-        valid_preds = lg.predict(X_valid)
-        test_preds = lg.predict(X_test)
+        model.fit(X_train, train['Writer_Sentiment'], C)
+        valid_preds = model.predict(X_valid)
+        test_preds = model.predict(X_test)
 
-        valid_score = calculate_score(valid_preds, valid[args.y_valid])
-        test_score = calculate_score(test_preds, test[args.y_test])
+        valid_score = calculate_score(valid_preds, valid['Writer_Sentiment'])
+        test_score = calculate_score(test_preds, test['Writer_Sentiment'])
 
         results.append(f'C:{C}, v_acc:{valid_score["accuracy"]}, t_acc:{test_score["accuracy"]}, v_mae:{valid_score["mae"]}, t_mae:{test_score["mae"]}, v_qwk:{valid_score["qwk"]}, t_qwk:{test_score["qwk"]}')
     
@@ -83,13 +85,11 @@ def main(args):
 
 
 if __name__ == "__main__":
-    argparser = ArgumentParser()
-
-    argparser.add_argument('--corpus', default='./data/pn-short.csv')
+    parser = ArgumentParser()
     
-    argparser.add_argument('--y_train', default='W_PN')
-    argparser.add_argument('--y_valid', default='W_PN')
-    argparser.add_argument('--y_test', default='W_PN')
+    parser.add_argument('--train', default='./data/train.tsv')
+    parser.add_argument('--valid', default='./data/valid.tsv')
+    parser.add_argument('--test', default='./data/test.tsv')
 
-    args = argparser.parse_args()
+    args = parser.parse_args()
     main(args)
