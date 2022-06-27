@@ -61,7 +61,7 @@ def main(args):
 
     X_train_valid = pd.DataFrame(X_train_valid.toarray(), columns=vectorizer.get_feature_names())
     X_test = pd.DataFrame(X_test.toarray(), columns=vectorizer.get_feature_names())
-    print(X_test)
+    print(X_test.shape)
 
     return
 
