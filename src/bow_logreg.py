@@ -1,4 +1,3 @@
-from xml.etree.ElementPath import prepare_descendant
 import numpy as np
 import pandas as pd
 import MeCab
@@ -9,15 +8,12 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_sco
 from tqdm import tqdm
 
 
-RANDOM_STATE = 34
-
-
 class LogRegClass:
     def __init__(self):
         self.model = None
 
     def fit(self, X_train, y_train, C):
-        self.model = LogisticRegression(C=C, random_state=RANDOM_STATE)
+        self.model = LogisticRegression(C=C, random_state=0)
         self.model.fit(X_train, y_train)
 
         return self.model
@@ -61,12 +57,13 @@ def main(args):
 
     X_train_valid = pd.DataFrame(X_train_valid.toarray(), columns=vectorizer.get_feature_names())
     X_test = pd.DataFrame(X_test.toarray(), columns=vectorizer.get_feature_names())
-    print(X_test.shape)
-
-    return
 
     X_train = X_train_valid[:len(train)]
     X_valid = X_train_valid[len(train):]
+
+    print(X_train.shape)
+    print(X_valid.shape)
+    print(X_test.shape)
 
     results = []
     model = LogRegClass()
