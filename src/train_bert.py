@@ -128,7 +128,7 @@ if __name__ == '__main__':
     parser.add_argument('--drop_rate', default=0.1)
     parser.add_argument('--learning_rate', default=2e-5)
 
-    parser.add_argument('--patience', default=1)
+    parser.add_argument('--patience', default=3)
     parser.add_argument('--verbose', default=True)
     parser.add_argument('--best_model', default='./models/best_model.pth')
 

@@ -16,15 +16,13 @@ class BertWikiClassifier(nn.Module):
 
     def forward(self, input_ids, attention_mask, user_features):
         _, pooler_output = self.bert(input_ids, attention_mask=attention_mask)
-
         if self.mode == 'Product':
-            output = pooler_output * user_features
+            sequence_output = pooler_output * user_features
         elif self.mode == 'Concat':
-            output = torch.cat([pooler_output, user_features], dim=1)
+            sequence_output = torch.cat([pooler_output, user_features], dim=1)
         else:
-            output = pooler_output
-
-        preds = self.classifier(self.drop(output))
+            sequence_output = pooler_output
+        preds = self.classifier(self.drop(sequence_output))
 
         return preds
 
