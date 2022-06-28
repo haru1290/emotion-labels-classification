@@ -59,7 +59,7 @@ def train_step(model, train_dataloader, valid_dataloader, criterion, optimizer, 
             break
 
 
-def torch_fix_seed(seed=0):
+def torch_fix_seed(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

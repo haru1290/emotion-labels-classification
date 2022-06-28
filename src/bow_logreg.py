@@ -68,8 +68,8 @@ def main(args):
     print(X_test.shape)
 
     results = []
-    model = LogRegClass()
     for C in tqdm([0.01, 0.1, 1, 10, 100]):
+        model = LogRegClass()
         model.fit(X_train, train['Writer_Sentiment'], C)
         valid_preds = model.predict(X_valid)
         test_preds = model.predict(X_test)
