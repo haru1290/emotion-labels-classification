@@ -7,6 +7,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_score
 from tqdm import tqdm
 
+import torch.nn as nn
+
 
 class LogRegClass:
     def __init__(self):
