@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, cohen_kappa_sco
 from argparse import ArgumentParser
 from tqdm import tqdm
 
-from make_dataset import CreateDataModule
+from make_dataset import CreateDataModule, CreateDataset
 from models import BertWikiClassifier
 from earlystopping import EarlyStopping
 
@@ -80,7 +80,7 @@ def main(args):
         pretrained_model=args.pretrained,
         user_features=torch.load('data/user_features.pt', map_location=torch.device('cpu'))
     )
-    data_module.setup()
+    data_module.setup(args.emotion)
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -105,6 +105,7 @@ def main(args):
         verbose=args.verbose
     )
 
+    print(args.mode + ' ' + args.emotion)
     train_step(model, data_module.train_dataloader(), data_module.valid_dataloader(), criterion, optimizer, earlystopping, args.n_epochs, device)
 
     model.load_state_dict(torch.load(args.best_model))
@@ -132,6 +133,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', default=True)
     parser.add_argument('--best_model', default='./models/best_model.pth')
 
+    parser.add_argument('--emotion', default=None)
     parser.add_argument('--mode', default=None)
 
     args = parser.parse_args()

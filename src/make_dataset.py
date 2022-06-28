@@ -1,12 +1,12 @@
-import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertJapaneseTokenizer
 
 
 class CreateDataset(Dataset):
-    def __init__(self, data, tokenizer, max_token_len, user_features):
+    def __init__(self, data, emotion, tokenizer, max_token_len, user_features):
         self.data = data
+        self.emotion = emotion
         self.tokenizer = tokenizer
         self.max_token_len = max_token_len
         self.user_features = user_features
@@ -17,7 +17,7 @@ class CreateDataset(Dataset):
     def __getitem__(self, index):
         data_row = self.data.iloc[index]
         text = data_row['Sentence']
-        labels = data_row['Writer_Joy']
+        labels = data_row[self.emotion]
         user_features = self.user_features[data_row['UserID'] - 1]
 
         encoding = self.tokenizer.encode_plus(
@@ -47,10 +47,10 @@ class CreateDataModule():
         self.tokenizer = BertJapaneseTokenizer.from_pretrained(pretrained_model)
         self.user_features = user_features
 
-    def setup(self):
-        self.train_dataset = CreateDataset(self.train, self.tokenizer, self.max_token_len, self.user_features)
-        self.valid_dataset = CreateDataset(self.valid, self.tokenizer, self.max_token_len, self.user_features)
-        self.test_dataset = CreateDataset(self.test, self.tokenizer, self.max_token_len, self.user_features)
+    def setup(self, emotion):
+        self.train_dataset = CreateDataset(self.train, emotion, self.tokenizer, self.max_token_len, self.user_features)
+        self.valid_dataset = CreateDataset(self.valid, emotion, self.tokenizer, self.max_token_len, self.user_features)
+        self.test_dataset = CreateDataset(self.test, emotion, self.tokenizer, self.max_token_len, self.user_features)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)

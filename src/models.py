@@ -24,7 +24,7 @@ class BertWikiClassifier(nn.Module):
             sequence_output = pooler_output * user_features
         elif self.mode == 'Concat':
             sequence_output_sum = pooler_output + user_features
-            sequence_output_dif = pooler_output + user_features
+            sequence_output_dif = pooler_output - user_features
             sequence_output_pro = pooler_output * user_features
             sequence_output = torch.cat([pooler_output, sequence_output_sum, sequence_output_dif, sequence_output_pro], dim=1)
         else:
